@@ -138,17 +138,17 @@ async function makeOrder(pairName) {
               }
 
               // BUY
-              const d2 = currPrice.minus(prevPrice).div(currPrice).times(100)
-              console.log(`[${pairName}] currPrice compared to prevPrice ${d2.toNumber().toFixed(2)}%`)
-              if (d2.lte(BUY_THRESHOLD)) {
+              // const d2 = currPrice.minus(prevPrice).div(currPrice).times(100)
+              // console.log(`[${pairName}] currPrice compared to prevPrice ${d2.toNumber().toFixed(2)}%`)
+              if (d1.lte(BUY_THRESHOLD)) {
                 console.log('==> BUY')
                 await buy(pairName)
-                await telegraf.telegram.sendMessage('826078577', `*[${pairName}] BUY $${BUY_AMOUNT} because d2 = ${d2.toNumber().toFixed(2)}% <= ${BUY_THRESHOLD}%*`, {
+                await telegraf.telegram.sendMessage('826078577', `*[${pairName}] BUY $${BUY_AMOUNT} because d1 = ${d1.toNumber().toFixed(2)}% <= ${BUY_THRESHOLD}%*`, {
                   parse_mode: 'Markdown',
                 })
                 console.log('==> DONE')
               } else {
-                await telegraf.telegram.sendMessage('826078577', `[${pairName}] NOT BUY because d2 = ${d2.toNumber().toFixed(2)}% > ${BUY_THRESHOLD}%`)
+                await telegraf.telegram.sendMessage('826078577', `[${pairName}] NOT BUY because d1 = ${d1.toNumber().toFixed(2)}% > ${BUY_THRESHOLD}%`)
                 console.log('==> NOT BUY')
               }
               console.log()
