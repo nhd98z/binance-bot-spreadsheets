@@ -12,9 +12,9 @@ const doc = new GoogleSpreadsheet('1inkl2wirb_HY3BHn0TnIafMMGEADtzrTGtUB0ShXqdo'
 const binance_key = 'aWf1oHaDe5IFlkjRam9ZMno7sqJaRg1hqz9cuY3crc3ex5nGBLmHF4em4TOIN1YX'
 const binance_secret = 'emJHgCfuCG8BVaVGEgnMhPpHwjoTDXwaabKvcvs6e5C6XZbOOoHXU2SYEQ7KoBma'
 
-const INTERVAL = 1 * 3600 * 1000
-const BUY_THRESHOLD = -1  // % (compared to price in INTERVAL hour ago)
-const SELL_THRESHOLD = 10 // % (compared to avgPrice)
+const INTERVAL = 1 * 3600 * 1000 / 4 // 15 minutes
+const BUY_THRESHOLD = -1  // % (compared to avgPrice)
+const SELL_THRESHOLD = 2 // % (compared to avgPrice)
 const BUY_AMOUNT = 15 // $
 
 async function initDoc() {
@@ -118,7 +118,7 @@ async function makeOrder(pairName) {
                 prev: `[${pairName}] prev = ${prevPrice.toNumber().toLocaleString(undefined, options)}`,
                 curr: `[${pairName}] curr = ${currPrice.toNumber().toLocaleString(undefined, options)}`,
               }
-              await telegraf.telegram.sendMessage('826078577', `${str.avg}\n${str.prev}\n${str.curr}\n`)
+              await telegraf.telegram.sendMessage('826078577', `${str.avg}\n${str.curr}\n`)
 
               // SELL
               const d1 = currPrice.minus(avgPrice).div(currPrice).times(100)
@@ -127,7 +127,7 @@ async function makeOrder(pairName) {
                 console.log('==> SELL')
                 const sellAmount = await sell(pairName, currPrice)
                 if (sellAmount) {
-                  await telegraf.telegram.sendMessage('826078577', `*[${pairName}] SELL $${sellAmount} because d1 = ${d1.toNumber().toFixed(2)}% >= ${SELL_THRESHOLD}%*`, {
+                  await telegraf.telegram.sendMessage('826078577', `@nguyenhuudungz *[${pairName}] SELL $${sellAmount} because d1 = ${d1.toNumber().toFixed(2)}% >= ${SELL_THRESHOLD}%*`, {
                     parse_mode: 'Markdown',
                   })
                 }
@@ -162,7 +162,8 @@ async function makeOrder(pairName) {
   }
 }
 
-const pairNames = ['NEARUSDT', 'KNCUSDT', 'GMTUSDT']
+// const pairNames = ['NEARUSDT', 'KNCUSDT', 'GMTUSDT']
+const pairNames = ['KNCUSDT']
 
 async function main() {
   const start = Date.now()
