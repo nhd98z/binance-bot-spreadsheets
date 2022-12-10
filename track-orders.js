@@ -10,18 +10,7 @@ const binance_key = '362okh3iJ4FE2ATjvLqgCKsiBy7BSu2mIrHkhh4FfY6tSgw5jPXxODLrKeT
 const binance_secret = 'C9erSdOpRoZIFcXB3JZGsGWry2cO5rLmOzghPSjKdcUsOkq77Xu5LdW9ytwF7JWH'
 const binanceSpotClient = new Spot(binance_key, binance_secret)
 
-const COLUMN_CONFIG = [
-  'orderId',
-  'updateTime',
-  'day',
-  'side',
-  'executedQty',
-  'price',
-  'cummulativeQuoteQty',
-  'accPnl',
-  'tokenLeft',
-  'avgPrice',
-]
+const COLUMN_CONFIG = ['ID', 'Time', 'Side', 'Quantity', 'Price', 'Remaining Token', 'Average Price', 'Note']
 
 async function saveOrdersToGoogleSheets(sheetName, data) {
   // Initialize Auth - see https://theoephraim.github.io/node-google-spreadsheet/#/getting-started/authentication
@@ -36,35 +25,35 @@ async function saveOrdersToGoogleSheets(sheetName, data) {
   const sheet = doc.sheetsByTitle[sheetName]
   await sheet.loadCells('A1:J999999')
 
-  let nextEmptyRow = 4
-  let biggestExistedOrderId = 0
+  let nextEmptyRow = 3
+  const existedOrderIds = []
   while (true) {
     const cell = sheet.getCell(nextEmptyRow, 0)
     if (cell.value === null) {
       break
     } else {
-      biggestExistedOrderId = Math.max(biggestExistedOrderId, cell.value)
+      existedOrderIds.push(cell.value)
       nextEmptyRow++
     }
   }
   data
-    .filter((item) => item.orderId > biggestExistedOrderId)
+    .filter((item) => {
+      return !existedOrderIds.includes(item.orderId)
+    })
     .forEach((item) => {
       telegraf.telegram.sendMessage(
         '826078577',
         `${item.side} ${new BigNumber(item.executedQty).toFixed()} ${sheetName} with price ${new BigNumber(
-          item.cummulativeQuoteQty,
-        )
-          .div(item.executedQty)
-          .toFixed()}.`,
+          item.price,
+        ).toFixed()}.`,
       )
 
       // Google sheets.
-      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('orderId')).value = item.orderId
-      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('updateTime')).value = item.updateTime
-      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('side')).value = item.side
-      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('cummulativeQuoteQty')).value = item.cummulativeQuoteQty
-      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('executedQty')).value = item.executedQty
+      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('ID')).value = item.orderId
+      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('Time')).value = item.time
+      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('Side')).value = item.side
+      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('Quantity')).value = item.executedQty
+      sheet.getCell(nextEmptyRow, COLUMN_CONFIG.indexOf('Price')).value = item.price
       nextEmptyRow++
     })
 
@@ -72,34 +61,41 @@ async function saveOrdersToGoogleSheets(sheetName, data) {
   console.log(`Saved ${sheetName} to google sheets.`)
 }
 
-async function getLimitOrders(pairName) {
-  console.log(`[getLimitOrders] ${pairName}`)
+async function getLimitOrders(token, pairName) {
   try {
     const response = await binanceSpotClient.allOrders(pairName, {
-      startTime: 1670544000000, // Friday, December 9, 2022 12:00:00 AM
+      startTime: 1670630400000, // December 10, 2022 0:00:00
     })
     const filledOrders = response.data
       .filter((order) => order.status === 'FILLED')
-      .map((order) => ({
-        orderId: order.orderId,
-        updateTime: order.updateTime,
-        side: order.side,
-        cummulativeQuoteQty: order.cummulativeQuoteQty,
-        executedQty: order.executedQty,
-      }))
-    await saveOrdersToGoogleSheets(pairName, filledOrders)
+      .map((order) => {
+        return {
+          orderId: order.orderId,
+          time: order.time,
+          side: order.side,
+          price: order.price,
+          executedQty: order.executedQty,
+        }
+      })
+    await saveOrdersToGoogleSheets(token, filledOrders)
   } catch (error) {
     console.error(error)
   }
 }
 
-const pairNames = ['BTCBUSD', 'ETHBUSD', 'BNBBUSD', 'SOLBUSD', 'NEARBUSD', 'KNCBUSD', 'GMTBUSD']
+async function getLimitOrdersOfToken(token) {
+  await getLimitOrders(token, token + 'USDT')
+  await getLimitOrders(token, token + 'BUSD')
+}
+
+const tokens = ['BTC', 'ETH', 'SOL', 'NEAR', 'KNC']
 
 async function main() {
   const start = Date.now()
-  const promises = pairNames.map((pairName) => getLimitOrders(pairName))
+  const promises = tokens.map((token) => getLimitOrdersOfToken(token))
   await Promise.all(promises)
   console.log('DONE in ' + (Date.now() - start) + 'ms')
 }
 
 main()
+setInterval(main, 60000)
